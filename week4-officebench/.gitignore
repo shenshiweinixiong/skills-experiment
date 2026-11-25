@@ -1,0 +1,12 @@
+# 本目录只包含第四周自研编排代码与脱敏说明；运行副本和浏览器本机输出不要提交。
+runs/
+bridge-runs/
+java-verify/
+__pycache__/
+*.pyc
+.env
+node_modules/
+.next/
+platform-dom.html
+platform-page.png
+platform-hydrated.png

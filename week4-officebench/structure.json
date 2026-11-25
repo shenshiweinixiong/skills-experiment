@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "structure_source": "human-designed; no LLM generated the nodes, edges or conflict rules",
+  "input_contract": ["task_id", "task text", "immutable original testbed", "run-specific output directory"],
+  "nodes": [
+    {"id": "locate", "skill": "officebench.locate", "output": ["source files", "input hashes"]},
+    {"id": "classify", "skill": "officebench.intent", "output": ["operation", "target path", "expected fields"], "human_choice": true},
+    {"id": "files", "skill": "officebench.file-action", "when": ["rename", "copy", "delete", "pdf_summary", "roster_count", "course_requirement", "homework_sum", "split_scores", "sort_scores"], "sort_scores_steps": ["read each uniquely named Name, midterm1, midterm2 column from score.xlsx", "sort complete rows by numeric midterm1 descending with stable ties", "write only data/sorted_score.xlsx without changing source; keep host-only reference outside staged and committed artifacts"], "split_scores_steps": ["read the unique Name, midterm1, midterm2 columns from score.xlsx", "write two separate data/midtermN.xlsx workbooks without replacing source", "keep host-only references outside staged and committed artifacts"], "pdf_summary_steps": ["extract source PDF text", "select actionable concert facts", "create searchable invitation PDF"], "roster_count_steps": ["identify unique student IDs and full names", "count total and Senior standings", "create source-derived answer.txt"], "course_requirement_steps": ["parse distinct Course ID values with strict CS/MATH department prefixes", "count both departments and compare each minimum", "write source-derived Yes/No with counts to answer.txt"], "homework_sum_steps": ["locate unique Last Name match in the roster", "read finite numeric HW1, HW2, HW3 by column header", "sum the three scores and write source-derived data/answer.txt without modifying workbook"]},
+    {"id": "sheets", "skill": "officebench.sheet-action", "when": ["set_cell", "append_row", "halve", "annual_to_daily", "attendance", "schedule", "sum_annual", "percentage_words"]},
+    {"id": "path_guard", "skill": "officebench.output-path-guard", "output": ["workspace-contained staged path"]},
+    {"id": "semantic_guard", "skill": "officebench.semantic-guard", "output": ["instruction-aligned values and preserved data"]},
+    {"id": "native_guard", "skill": "officebench.native-score", "output": ["native predicate results", "host-only exact-match active-sheet bidirectional value comparisons"]},
+    {"id": "commit", "skill": "officebench.commit", "when": ["path_guard", "semantic_guard", "native_guard"], "output": ["committed artifact", "trace"]}
+  ],
+  "edges": [
+    {"from": "locate", "to": "classify", "type": "serial"},
+    {"from": "classify", "to": "files", "type": "condition"},
+    {"from": "classify", "to": "sheets", "type": "condition"},
+    {"from": "files", "to": "path_guard", "type": "serial"},
+    {"from": "sheets", "to": "path_guard", "type": "serial"},
+    {"from": "path_guard", "to": "semantic_guard", "type": "parallel-readonly"},
+    {"from": "path_guard", "to": "native_guard", "type": "parallel-readonly"},
+    {"from": "semantic_guard", "to": "commit", "type": "join-all"},
+    {"from": "native_guard", "to": "commit", "type": "join-all"}
+  ],
+  "conflicts": {
+    "same_file_writes": "serial; staging file per task; reject competing writes to same cell or path",
+    "independent_readonly_verifiers": "parallel after staged artifact is closed",
+    "merge": "commit only if every branch approves the same staged SHA-256 and expected output path",
+    "on_failure": "do not modify input or commit output; preserve stage and trace with failure reason"
+  }
+}
